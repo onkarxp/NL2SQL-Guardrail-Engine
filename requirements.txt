@@ -1,0 +1,7 @@
+psycopg2-binary
+sqlglot
+faker
+python-dotenv
+openai
+anthropic
+pgvector
