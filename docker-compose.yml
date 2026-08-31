@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:16
+    container_name: safequery_db
+    environment:
+      POSTGRES_USER: safequery
+      POSTGRES_PASSWORD: safequery_dev
+      POSTGRES_DB: safequery_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./data/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
+      - ./data/seed.sql:/docker-entrypoint-initdb.d/2-seed.sql
+volumes:
+  pgdata:
