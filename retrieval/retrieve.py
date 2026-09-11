@@ -32,3 +32,5 @@ if __name__ == "__main__":
         results = retrieve_relevant_tables(question)
         for table, desc, distance in results:
             print(f"  [{distance:.4f}] {table}")
+            
+## Just adding a comment for git
