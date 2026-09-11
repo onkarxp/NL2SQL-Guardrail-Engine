@@ -7,8 +7,7 @@ random.seed(42)  # reproducible output
 regions = ["North", "South", "East", "West"]
 statuses = ["placed", "shipped", "cancelled", "returned"]
 categories = ["Electronics", "Home", "Apparel", "Books", "Toys"]
-
-lines = []
+lines = [] ##A list where we are appending all the SQL queries that we need to generate Database using faker
 
 # Regions
 for i, r in enumerate(regions, start=1):
