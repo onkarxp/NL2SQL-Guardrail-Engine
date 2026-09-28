@@ -1,5 +1,5 @@
 from guardrails.extract import extract_sql_queries
-from guardrails.validators import check_syntax, check_select_only, check_schema, check_explain
+from guardrails.validators import check_syntax, check_select_only, check_schema, check_explain, check_functions
 from retrieval.catalog import get_schema_catalog
 
 def validate_sql(raw_output: str, conn):
@@ -17,11 +17,18 @@ def validate_sql(raw_output: str, conn):
         return {"passed": False, "sql": sql, "failed_at": "allowlist", "errors": [err]}
 
     errs = check_schema(tree, get_schema_catalog(conn))
+    ## here we are passing the catalog dictionary to the check_schema function, which will validate the SQL query against the known schema.
     if errs:
         return {"passed": False, "sql": sql, "failed_at": "schema", "errors": errs}
 
     err = check_explain(sql, conn)
     if err:
         return {"passed": False, "sql": sql, "failed_at": "explain", "errors": [err]}
+    
+    err = check_functions(tree)
+    if err:
+        return {"passed": False, "sql": sql, "failed_at": "functions", "errors": [err]}
 
     return {"passed": True, "sql": sql, "failed_at": None, "errors": []}
+
+    

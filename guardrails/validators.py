@@ -82,3 +82,12 @@ def check_explain(sql: str, conn):
         cur.close()
 
 
+ALLOWED_UNRECOGNIZED_FUNCTIONS = {"age"}
+
+def check_functions(tree):
+    used = {f.name.lower() for f in tree.find_all(exp.Anonymous)}
+    bad = sorted(used - ALLOWED_UNRECOGNIZED_FUNCTIONS)
+    if bad:
+        return f"Function not on the allowlist: {', '.join(bad)}"
+    return None
+
