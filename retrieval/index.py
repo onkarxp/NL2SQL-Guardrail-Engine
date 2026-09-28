@@ -1,3 +1,5 @@
+##Goal of this file is to build descriptions and embeddings
+
 from sentence_transformers import SentenceTransformer
 from retrieval.catalog import get_connection, get_schema_catalog, get_foreign_keys, get_sample_values
 from retrieval.config import CATEGORICAL_COLUMNS,TABLE_HINTS
