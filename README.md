@@ -26,12 +26,46 @@ Natural language question
   SQL generation    (LLM, chain-of-thought, dialect-aware)
         |
         v
-  Guardrail validation
-    - SQL syntax parsing
-    - Schema existence check (catches hallucinated tables/columns)
-    - Operation allowlist (SELECT-only, blocks DML/DDL)
-    - Row-level security / tenant filter injection
-    - Cost & row limit enforcement
+Guardrail validation (runs on every generated query, in order, stops at first failure)
+    1. SQL syntax parsing — sqlglot parses the query; rejects anything malformed
+       or more than one statement
+    2. Operation allowlist — SELECT only, checked on the parsed tree, not text;
+       walks every node so a write hidden in a subquery is also caught
+    3. Function allowlist — rejects any function sqlglot doesn't recognize as a
+       standard SQL function (catches pg_sleep, set_config, pg_read_file, dblink)
+    4. Schema existence check — tables/columns checked against the live catalog;
+       correctly skips CTE and derived-subquery aliases (fixed false positive)
+    5. EXPLAIN validation — Postgres itself plans the query without running it;
+       backstop for anything the first four miss, including hallucinations
+       hidden inside a CTE
+
+Execution-level enforcement (separate from the guardrails above, enforced by
+Postgres itself, independent of our own code)
+    - Read-only reader role — a dedicated safequery_reader login, SELECT-only
+      on named tables, cannot see internal tables like schema_embeddings
+    - Statement timeout — 5s, database-enforced, survives even a validated
+      SELECT that tries to disable it (closed via the function allowlist +
+      a fresh connection per query)
+    - Row limit — injected into the parse tree, not trusted from the model;
+      detects and reports truncation rather than silently capping
+
+Semantic checks (a different category — these don't check if a query is
+valid, they check if an answer can be trusted)
+    - Self-consistency check — same question run twice independently; flags
+      disagreement beyond a tolerance, since no guardrail above can catch a
+      query that is fully valid but answers an ambiguous question differently
+      each time (the average-order-value case)
+
+Row-level security / tenant filtering — not built; not applicable to the
+current single-tenant schema, documented as a known extension point
+
+Upload validation (a related but separate guardrail, for a different stage:
+validating a user's own schema+data file before it's ever run, not for
+validating generated queries)
+    - Allows only CREATE TABLE and INSERT; every INSERT is checked to ensure
+      every table it touches — as target or as a source via subquery — was
+      created by that same file, blocking exfiltration via INSERT ... SELECT
+      from someone else's existing tables.
         |
         v
   Sandboxed execution (read-only replica, scoped DB role, query timeout)

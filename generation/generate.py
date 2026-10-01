@@ -16,11 +16,24 @@ Rules:
 - Only generate SELECT statements — never INSERT, UPDATE, DELETE, DROP, or ALTER.
 - Use explicit JOINs based on the relationships listed in the schema context.
 - If the question cannot be answered using the given schema, say so instead of guessing.
+- When a metric could be computed at more than one level of aggregation
+  (for example, averaging per line item vs. averaging per order), state
+  which level you are using in REASONING, and prefer aggregating at the
+  level implied by the noun in the question ("order value" implies
+  per-order totals, not per-line-item amounts).
 
 Respond in this exact format:
 REASONING: <one or two sentences on your approach>
 SQL: <the SQL query, nothing else after this>
 """
+def ask_claude(messages):
+    response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=500,
+        system=SYSTEM_PROMPT,
+        messages=messages,
+    )
+    return response.content[0].text
 
 def build_prompt(question: str, retrieved_tables):
     schema_context = "\n\n".join([desc for (_, desc, _) in retrieved_tables])
