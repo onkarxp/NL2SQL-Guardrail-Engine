@@ -74,3 +74,4 @@ if __name__ == "__main__":
         print(f"  {fk[0]}.{fk[1]} -> {fk[2]}.{fk[3]}")
 
     conn.close()
+    

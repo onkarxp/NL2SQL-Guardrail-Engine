@@ -71,7 +71,7 @@ def check_select_only(tree):
 #     return errors
 
 def check_schema(tree, catalog: dict):
-    errors = []
+    errors = [] 
     cte_names = {c.alias for c in tree.find_all(exp.CTE)}
     subquery_aliases = {s.alias for s in tree.find_all(exp.Subquery) if s.alias}
     virtual_names = cte_names | subquery_aliases  # not real tables: nothing to check columns against
@@ -124,3 +124,15 @@ def check_functions(tree):
         return f"Function not on the allowlist: {', '.join(bad)}"
     return None
 
+def check_data_source(tree):
+    if tree.args.get("from_") is None:
+        return "Query has no FROM clause and references no real data"
+    return None
+
+def check_where_is_not_vacuous(tree):
+    where = tree.args.get("where")
+    if where is None:
+        return None
+    if not list(where.find_all(exp.Column)):
+        return "WHERE clause references no real columns (tautological filter, not a genuine data filter)"
+    return None

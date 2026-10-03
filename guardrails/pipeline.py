@@ -1,5 +1,6 @@
+
 from guardrails.extract import extract_sql_queries
-from guardrails.validators import check_syntax, check_select_only, check_schema, check_explain, check_functions
+from guardrails.validators import check_syntax, check_select_only, check_schema, check_explain, check_functions, check_data_source, check_where_is_not_vacuous
 from retrieval.catalog import get_schema_catalog
 
 def validate_sql(raw_output: str, conn):
@@ -28,6 +29,14 @@ def validate_sql(raw_output: str, conn):
     err = check_functions(tree)
     if err:
         return {"passed": False, "sql": sql, "failed_at": "functions", "errors": [err]}
+
+    err = check_data_source(tree)
+    if err:
+        return {"passed": False, "sql": sql, "failed_at": "no_data_source", "errors": [err]}
+    
+    err = check_where_is_not_vacuous(tree)
+    if err:
+        return {"passed": False, "sql": sql, "failed_at": "vacuous_filter", "errors": [err]}
 
     return {"passed": True, "sql": sql, "failed_at": None, "errors": []}
 
