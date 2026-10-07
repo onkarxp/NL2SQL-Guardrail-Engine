@@ -1,6 +1,9 @@
+
+# Function of this function is to check the consistency of SQL query results generated from the same question. 
+# It runs the query multiple times and compares the numeric results to see if they are consistent within a specified tolerance.
 def _extract_numeric_map(result):
-    """Turn a query result into {label: number}, matching by the first
-    text column and the first fully-numeric column, not by row position."""
+    # Turn a query result into {label: number}, matching by the first
+    # text column and the first fully-numeric column, not by row position.
     columns = result["columns"]
     rows = result["rows"]
     label_idx, value_idx = 0, None
