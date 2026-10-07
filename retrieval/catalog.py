@@ -17,8 +17,9 @@ def get_connection():
 ## We take a cursor object from the connection 
 # object and then execute queries using that cursor object. 
 # The cursor object is used to interact with the database and execute SQL commands.
-def get_schema_catalog(conn):
-    """Returns {table_name: [{column, type}, ...]} for all tables in public schema."""
+def get_schema_catalog(conn): # used as a description to give to the LLM
+    
+    # Returns {table_name: [{column, type}, ...]} for all tables in public schema.
     cur = conn.cursor()
     cur.execute("""
         SELECT table_name, column_name, data_type
@@ -40,7 +41,7 @@ def get_schema_catalog(conn):
 
 ## For every foreign key in my database, tell me on which table/column it is defined on and which table/column it points to
 def get_foreign_keys(conn):
-    """Returns list of (table, column, references_table, references_column)."""
+    # Returns list of (table, column, references_table, references_column)."""
     cur = conn.cursor()
     cur.execute("""
         SELECT

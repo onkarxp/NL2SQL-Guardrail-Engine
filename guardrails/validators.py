@@ -136,3 +136,4 @@ def check_where_is_not_vacuous(tree):
     if not list(where.find_all(exp.Column)):
         return "WHERE clause references no real columns (tautological filter, not a genuine data filter)"
     return None
+
