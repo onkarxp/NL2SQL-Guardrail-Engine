@@ -1,6 +1,6 @@
 def check_plausibility(result):
-    """Flags, not failures -- these are notes for a human/UI to see,
-    not reasons to block an answer the way guardrails do."""
+    # Flags, not failures -- these are notes for a human/UI to see,
+    # not reasons to block an answer the way guardrails do.
     notes = []
 
     if result["row_count"] == 0:

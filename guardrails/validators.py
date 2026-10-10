@@ -137,3 +137,16 @@ def check_where_is_not_vacuous(tree):
         return "WHERE clause references no real columns (tautological filter, not a genuine data filter)"
     return None
 
+def check_no_empty_limit(tree):
+    if not isinstance(tree, exp.Select):
+        return None
+    lim = tree.args.get("limit")
+    if lim is not None:
+        e = lim.args.get("expression")
+        if isinstance(e, exp.Literal) and not e.is_string:
+            try:
+                if int(e.this) == 0:
+                    return "LIMIT 0 can never return rows; answer the question or refuse with CANNOT_ANSWER."
+            except ValueError:
+                pass
+    return None

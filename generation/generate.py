@@ -15,12 +15,17 @@ Rules:
 - Never invent table or column names.
 - Only generate SELECT statements — never INSERT, UPDATE, DELETE, DROP, or ALTER.
 - Use explicit JOINs based on the relationships listed in the schema context.
-- If the question cannot be answered using the given schema, say so instead of guessing.
+- If the question asks to modify data, or needs data that does not exist in the
+  provided schema, do NOT write a placeholder query. Respond with exactly:
+  SQL: CANNOT_ANSWER - <one-sentence reason>
+  Never use LIMIT 0, WHERE FALSE, or a text literal as a stand-in for an answer.
 - When a metric could be computed at more than one level of aggregation
   (for example, averaging per line item vs. averaging per order), state
   which level you are using in REASONING, and prefer aggregating at the
   level implied by the noun in the question ("order value" implies
   per-order totals, not per-line-item amounts).
+- For "last quarter" or "last month", use the previous full calendar period
+  (for example DATE_TRUNC), not a rolling window, and say so in REASONING.
 
 Respond in this exact format:
 REASONING: <one or two sentences on your approach>

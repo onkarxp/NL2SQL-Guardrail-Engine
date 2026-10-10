@@ -1,6 +1,6 @@
 
 from guardrails.extract import extract_sql_queries
-from guardrails.validators import check_syntax, check_select_only, check_schema, check_explain, check_functions, check_data_source, check_where_is_not_vacuous
+from guardrails.validators import check_syntax, check_select_only, check_schema, check_explain, check_functions, check_data_source, check_where_is_not_vacuous, check_no_empty_limit
 from retrieval.catalog import get_schema_catalog
 
 def validate_sql(raw_output: str, conn):
@@ -8,7 +8,10 @@ def validate_sql(raw_output: str, conn):
     if not sql:
         return {"passed": False, "sql": None, "failed_at": "extract",
                 "errors": ["No SQL found in model output"]}
-
+    if sql.strip().upper().startswith("CANNOT_ANSWER"):
+        reason = sql.strip()[len("CANNOT_ANSWER"):].lstrip(" -:") or "No reason given"
+        return {"passed": False, "sql": None, "failed_at": "refused", "errors": [reason]}
+    
     tree, err = check_syntax(sql)
     if err:
         return {"passed": False, "sql": sql, "failed_at": "syntax", "errors": [err]}
@@ -38,6 +41,9 @@ def validate_sql(raw_output: str, conn):
     if err:
         return {"passed": False, "sql": sql, "failed_at": "vacuous_filter", "errors": [err]}
 
+    err = check_no_empty_limit(tree)
+    if err:
+        return {"passed": False, "sql": sql, "failed_at": "empty_limit", "errors": [err]}
     return {"passed": True, "sql": sql, "failed_at": None, "errors": []}
 
     

@@ -14,6 +14,10 @@ def generate_and_execute(question, ask_fn, build_prompt_fn, retrieve_fn, top_k=4
 
         result = execute_query(raw_output)
         attempts.append({"attempt": attempt_num, "raw_output": raw_output, "result": result})
+        
+        if result.get("failed_at") == "refused":
+            return {"question": question, "success": False, "refused": True,
+                    "reason": result["errors"][0], "attempts": attempts, "final": result}
 
         if result["executed"]:
             return {"question": question, "success": True, "attempts": attempts, "final": result}
