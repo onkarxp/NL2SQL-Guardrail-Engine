@@ -3,3 +3,7 @@ env/
 .env
 __pycache__/
 *.pyc
+eval_results.json
+.pytest_cache/
+.vscode/
+*.log

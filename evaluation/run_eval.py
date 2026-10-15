@@ -101,7 +101,8 @@ def run_case(case):
             elif not r["success"]:
                 rec["passed"] = False
             else:
-                rec["passed"] = _matches(final["rows"], _reference_rows(case["reference_sql"]))
+                refs = [case["reference_sql"]] + case.get("alt_reference_sqls", [])
+                rec["passed"] = any(_matches(final["rows"], _reference_rows(q)) for q in refs)
     except Exception as e:                           # a crash is recorded, never silent
         rec["passed"] = False if case["kind"] != "ambiguous" else None
         rec["crash"] = f"{type(e).__name__}: {e}"

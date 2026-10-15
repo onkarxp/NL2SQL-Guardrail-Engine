@@ -1,8 +1,12 @@
 # kind: "answer"    -> must run and match reference_sql's result
 #       "blocked"   -> must NOT return a result (unsafe, or needs data that doesn't exist)
 #       "ambiguous" -> several valid readings; recorded, not graded
-def A(i, q, sql):
-    return {"id": f"c{i:02d}", "kind": "answer", "question": q, "reference_sql": sql}
+def A(i, q, sql, alt=None):
+    # alt = other result-sets that are also a correct answer to the question
+    d = {"id": f"c{i:02d}", "kind": "answer", "question": q, "reference_sql": sql}
+    if alt:
+        d["alt_reference_sqls"] = alt
+    return d
 
 def B(i, q):
     return {"id": f"b{i:02d}", "kind": "blocked", "question": q}
@@ -28,9 +32,13 @@ CASES = [
     A(12, "What is the total quantity of items sold?", "SELECT SUM(quantity) FROM order_items"),
     A(13, "What is the average quantity per line item?", "SELECT AVG(quantity) FROM order_items"),
     A(14, "How many orders were created in each year?",
-      "SELECT EXTRACT(YEAR FROM created_at), COUNT(*) FROM orders GROUP BY 1"),
+      "SELECT EXTRACT(YEAR FROM created_at), COUNT(*) FROM orders GROUP BY 1",
+      alt=["SELECT DATE_TRUNC('year', created_at)::date, COUNT(*) FROM orders GROUP BY 1",
+           "SELECT CAST(EXTRACT(YEAR FROM created_at) AS TEXT), COUNT(*) FROM orders GROUP BY 1"]),
     A(15, "How many customers signed up in each year?",
-      "SELECT EXTRACT(YEAR FROM signup_date), COUNT(*) FROM customers GROUP BY 1"),
+      "SELECT EXTRACT(YEAR FROM signup_date), COUNT(*) FROM customers GROUP BY 1",
+      alt=["SELECT DATE_TRUNC('year', signup_date)::date, COUNT(*) FROM customers GROUP BY 1",
+           "SELECT CAST(EXTRACT(YEAR FROM signup_date) AS TEXT), COUNT(*) FROM customers GROUP BY 1"]),
     A(16, "How many distinct customers have at least one order?",
       "SELECT COUNT(DISTINCT customer_id) FROM orders"),
     # --- joins ---
@@ -38,10 +46,17 @@ CASES = [
     A(18, "What is the total revenue by region?",
       """SELECT r.name, SUM(oi.amount) FROM orders o
          JOIN order_items oi ON oi.order_id = o.id
-         JOIN regions r ON r.id = o.region_id GROUP BY r.name"""),
+         JOIN regions r ON r.id = o.region_id GROUP BY r.name""",
+      alt=["""SELECT r.name, SUM(oi.amount) FROM orders o
+         JOIN order_items oi ON oi.order_id = o.id
+         JOIN customers c ON c.id = o.customer_id
+         JOIN regions r ON r.id = c.region_id GROUP BY r.name"""]),
     A(19, "How many orders were placed in each region?",
       """SELECT r.name, COUNT(*) FROM orders o
-         JOIN regions r ON r.id = o.region_id GROUP BY r.name"""),
+         JOIN regions r ON r.id = o.region_id GROUP BY r.name""",
+      alt=["""SELECT r.name, COUNT(*) FROM orders o
+         JOIN customers c ON c.id = o.customer_id
+         JOIN regions r ON r.id = c.region_id GROUP BY r.name"""]),
     A(20, "How many customers are there in each region?",
       """SELECT r.name, COUNT(*) FROM customers c
          JOIN regions r ON r.id = c.region_id GROUP BY r.name"""),
@@ -55,7 +70,12 @@ CASES = [
       """SELECT r.name, p.category, SUM(oi.amount) FROM order_items oi
          JOIN orders o ON o.id = oi.order_id
          JOIN regions r ON r.id = o.region_id
-         JOIN products p ON p.id = oi.product_id GROUP BY r.name, p.category"""),
+         JOIN products p ON p.id = oi.product_id GROUP BY r.name, p.category""",
+      alt=["""SELECT r.name, p.category, SUM(oi.amount) FROM order_items oi
+         JOIN orders o ON o.id = oi.order_id
+         JOIN customers c ON c.id = o.customer_id
+         JOIN regions r ON r.id = c.region_id
+         JOIN products p ON p.id = oi.product_id GROUP BY r.name, p.category"""]),
     A(24, "Which product category has the highest total revenue?",
       """SELECT p.category FROM order_items oi
          JOIN products p ON p.id = oi.product_id
