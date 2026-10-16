@@ -258,4 +258,4 @@ Why two: in the end-to-end run the model refused every unsafe request itself, so
 
 ## License
 
-MIT — Copyright (c) 2026 Onkar Pathak
+Copyright (c) 2026 Onkar Pathak
