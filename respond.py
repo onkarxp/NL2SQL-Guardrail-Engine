@@ -24,6 +24,11 @@ def respond(question, force_verify=False):
     if not r["success"]:
         return r
     r["plausibility_notes"] = check_plausibility(r["final"])
+    if r["final"].get("truncated"):
+        r["plausibility_notes"].append(
+            f"Result truncated: only the first {r['final']['row_count']} rows are shown; "
+            "the full result is larger."
+        )
     r["answer"] = build_grounded_answer(question, r["final"], ask_claude)
 
     r["low_confidence"] = False

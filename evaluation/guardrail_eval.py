@@ -5,6 +5,7 @@ Each case is hand-written SQL fed to validate_sql. Three outcomes matter:
   layer mismatch  blocked, but by a different layer than I expected (informational)
 """
 from collections import Counter
+import sys
 from guardrails.pipeline import validate_sql
 from execution.sandbox import get_reader_connection
 
@@ -110,7 +111,8 @@ def main():
     unused = [l for l in all_layers if caught_by.get(l, 0) == 0]
     if unused:
         print("\nLayers that never caught anything (no test exercises them first):", unused)
+    return not (fail_open or false_pos or errors)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(0 if main() else 1)

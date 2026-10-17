@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  guardrail-eval:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: safequery
+          POSTGRES_PASSWORD: safequery_dev
+          POSTGRES_DB: safequery_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U safequery -d safequery_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGPASSWORD: safequery_dev
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install psycopg2-binary==2.9.12 sqlglot==30.17.0 python-dotenv==1.2.3
+
+      - name: Load schema, seed data and read-only role
+        run: |
+          for f in schema seed roles; do
+            psql -h localhost -U safequery -d safequery_db -v ON_ERROR_STOP=1 -f data/$f.sql
+          done
+
+      - name: Run guardrail evaluation
+        run: python -m evaluation.guardrail_eval

@@ -1,0 +1,11 @@
+venv/
+env/
+.env
+.git/
+__pycache__/
+*.pyc
+eval_results.json
+.pytest_cache/
+.vscode/
+notebooks/
+*.log

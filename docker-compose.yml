@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -14,5 +13,27 @@ services:
       - ./data/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
       - ./data/seed.sql:/docker-entrypoint-initdb.d/2-seed.sql
       - ./data/roles.sql:/docker-entrypoint-initdb.d/3-roles.sql
+    healthcheck:
+      # 127.0.0.1 forces a network connection. During first-run setup Postgres
+      # only listens on a local socket, so this stays "unhealthy" until the
+      # scripts have finished.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U safequery -d safequery_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build: .
+    container_name: safequery_app
+    env_file: .env
+    environment:
+      DB_HOST: postgres   # the service name is the hostname on compose's private network
+      DB_PORT: "5432"
+    ports:
+      - "8501:8501"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   pgdata:

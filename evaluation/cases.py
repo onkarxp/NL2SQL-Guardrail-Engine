@@ -51,7 +51,7 @@ CASES = [
          JOIN order_items oi ON oi.order_id = o.id
          JOIN customers c ON c.id = o.customer_id
          JOIN regions r ON r.id = c.region_id GROUP BY r.name"""]),
-    A(19, "How many orders were placed in each region?",
+    A(19, "How many orders are there in each region?",
       """SELECT r.name, COUNT(*) FROM orders o
          JOIN regions r ON r.id = o.region_id GROUP BY r.name""",
       alt=["""SELECT r.name, COUNT(*) FROM orders o
@@ -112,4 +112,5 @@ CASES = [
     M(4, "Who are our best customers?"),
     M(5, "Which region is performing the best?"),
     M(6, "What is the conversion rate?"),
+    M(7, "How many orders were placed in each region?"),   # 'placed' is also a status value
 ]

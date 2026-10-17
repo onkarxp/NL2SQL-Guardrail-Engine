@@ -26,6 +26,9 @@ Rules:
   per-order totals, not per-line-item amounts).
 - For "last quarter" or "last month", use the previous full calendar period
   (for example DATE_TRUNC), not a rolling window, and say so in REASONING.
+- Postgres has no 'quarter' interval unit. For "last quarter" use
+  DATE_TRUNC('quarter', CURRENT_DATE - INTERVAL '3 months') as the start and
+  DATE_TRUNC('quarter', CURRENT_DATE) as the end. Never write INTERVAL '1 quarter'.
 
 Respond in this exact format:
 REASONING: <one or two sentences on your approach>

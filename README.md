@@ -219,7 +219,7 @@ Requires an Anthropic API key (workspace-scoped) in the environment.
 
 ## Roadmap
 
-- [x] Step 7: evaluation harness, refusal path, guardrail-only evaluation (final rerun numbers pending, see Evaluation)
+- [x] Step 7: evaluation harness, refusal path, guardrail-only evaluation, final results (80–81/84 across two runs, see Evaluation)
 - [ ] A simple web interface (Streamlit) over the existing `respond()` function
 - [ ] Full integration of schema-and-data upload (currently prototyped and tested, not yet wired into the live pipeline)
 - [ ] Cost-based rejection using EXPLAIN's estimated query cost, not just row limits and timeouts
@@ -235,14 +235,19 @@ Two separate evaluations, because they measure different things.
 
 **1. End-to-end (`evaluation/run_eval.py`)** — 46 questions, each run 3 times, graded by comparing the generated query's *result* to a hand-written reference query (not by comparing SQL text): 28 answerable, 12 unsafe or unanswerable, 6 genuinely ambiguous (recorded, not graded).
 
-| Metric (first full run, 138 runs) | Result |
+| Metric (138 runs: 46 questions × 3) | Result |
 |---|---|
-| Execution accuracy (28 answerable × 3) | 77 / 84 before grader corrections |
-| Answered on the first attempt | 84 / 84 |
+| Execution accuracy (28 answerable × 3 runs) | **80–81 / 84 (95.2–96.4%)** across two full runs; 27 of 28 questions correct in all 3 runs in the first, 26 of 28 in the second |
+| Answered on the first attempt | 84 / 84 (first run), 83 / 84 (second run) |
 | Unsafe or unanswerable requests returning no result | 36 / 36, all cleanly refused in one attempt |
+| Unstable cases (pass some runs, fail others) | none in the first run; one ("How many orders were placed in each region?") in the second |
 | Tables unchanged after the run | True |
 
-All 7 misses were diagnosed: 3 runs (one question, "customers with more than 3 orders") were a **genuine, consistent model error** (nested aggregation: it returned one row per qualifying customer instead of counting them); 4 runs were a grader limit (year returned as a date instead of a number) or an ambiguous schema (two valid region links), now handled with alternate accepted reference queries. A rerun with those corrections is pending, so the corrected accuracy is not reported here.
+The 3 misses in the first run are one question ("How many customers have more than 3 orders?") failing in every run: a **genuine, consistent model error** (nested aggregation: it returns one row per qualifying customer instead of counting them). It is left as a documented limitation. An earlier run scored 77/84; the 4 extra misses then were test-side problems (a year returned as a date instead of a number, and a schema with two valid region links), fixed by accepting alternate reference queries, not by changing the system.
+
+The second full run scored 80/84. The extra miss was case 19, "How many orders were **placed** in each region?", in 1 of 3 runs: the model once read "placed" as the status value `'placed'` and filtered on it (`LEFT JOIN orders ... AND o.status = 'placed'`), which is a legitimate reading, since `placed` is a real status in the data. The cause was ambiguous wording in the test question, not a system bug. After diagnosing it, the graded question was reworded to "How many orders are there in each region?" and the original wording was moved to the ambiguous set. The test was changed after seeing the system fail it, so both runs with the old wording (81 and 80) are reported above.
+
+**Ambiguous questions (7 after the c19 rewording, recorded not graded):** the low-confidence flag fired in 5 of the 12 runs where the model answered (it varies run to run, e.g. "orders placed" was flagged 0/3 in one run and 2/3 in the next); "best customers" and "conversion rate" were refused every time. The flag is a useful signal, not a reliable detector.
 
 **2. Guardrails only (`evaluation/guardrail_eval.py`)** — no LLM. 40 hand-written SQL strings go straight into the validators: **29/29 dangerous inputs blocked, 11/11 valid queries allowed, 0 fail-open, 0 false positives**, and every layer caught at least one case. The valid queries (CTEs, subqueries, window functions, comments) are false-positive controls.
 

@@ -64,10 +64,10 @@ def _same_numbers(m1, m2, tolerance):
 
 
 def check_consistency_n(question, ask_fn, build_prompt_fn, retrieve_fn,
-                        generate_and_execute_fn, runs=5, tolerance=0.15):
+                        generate_and_execute_fn, runs=5, tolerance=0.15, max_attempts=3):
     collected = []
     for _ in range(runs):
-        r = generate_and_execute_fn(question, ask_fn, build_prompt_fn, retrieve_fn, max_attempts=1)
+        r = generate_and_execute_fn(question, ask_fn, build_prompt_fn, retrieve_fn, max_attempts=max_attempts)
         if r["success"]:
             m = _extract_numeric_map(r["final"])
             if m:
@@ -75,7 +75,9 @@ def check_consistency_n(question, ask_fn, build_prompt_fn, retrieve_fn,
 
     if len(collected) < 2:
         return {"agreement_rate": None, "distinct_answers": None,
-                "reason": "fewer than 2 successful comparable runs"}
+                "failed_runs": runs - len(collected),
+                "reason": f"only {len(collected)} of {runs} runs produced a comparable result "
+                          f"({runs - len(collected)} failed validation or had no numeric result)"}
 
     clusters = []  # each cluster = one distinct numeric answer
     for run in collected:
@@ -90,6 +92,7 @@ def check_consistency_n(question, ask_fn, build_prompt_fn, retrieve_fn,
     n = len(collected)
     return {
         "n": n,
+        "failed_runs": runs - n,
         "agreement_rate": round(clusters[0]["runs"] / n * 100, 1),  # share in the biggest cluster
         "distinct_answers": len(clusters),
         "distinct_sql_shapes": len({r["sql"] for r in collected}),

@@ -1,3 +1,4 @@
+import os
 import time
 import psycopg2
 import sqlglot
@@ -5,9 +6,16 @@ from guardrails.pipeline import validate_sql
 
 MAX_ROWS = 100
 
+# def get_reader_connection():
+#     return psycopg2.connect(
+#         host="localhost", port=5432,
+#         user="safequery_reader", password="reader_dev", dbname="safequery_db",
+#     )
+
 def get_reader_connection():
     return psycopg2.connect(
-        host="localhost", port=5432,
+        host=os.getenv("DB_HOST", "localhost"),
+        port=int(os.getenv("DB_PORT", "5432")),
         user="safequery_reader", password="reader_dev", dbname="safequery_db",
     )
 

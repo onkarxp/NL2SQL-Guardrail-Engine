@@ -5,13 +5,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ## gives a connection object which connects python with postgres
+# def get_connection():
+#     return psycopg2.connect(
+#         host="localhost",
+#         port=5432,
+#         user="safequery",
+#         password="safequery_dev",
+#         dbname="safequery_db"
+#     )
+
 def get_connection():
     return psycopg2.connect(
-        host="localhost",
-        port=5432,
+        host=os.getenv("DB_HOST", "localhost"),
+        port=int(os.getenv("DB_PORT", "5432")),
         user="safequery",
         password="safequery_dev",
-        dbname="safequery_db"
+        dbname="safequery_db",
     )
 
 ## We take a cursor object from the connection 
