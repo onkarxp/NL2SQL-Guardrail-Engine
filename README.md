@@ -1,5 +1,7 @@
 # SafeQuery — Guardrailed NL2SQL Engine
 
+![CI](https://github.com/onkarxp/NL2SQL-Guardrail-Engine/actions/workflows/ci.yml/badge.svg)
+
 A production-oriented **Text-to-SQL system** that translates natural language questions into SQL, validated through an eight-layer guardrail pipeline with an explicit refusal path, executed in a sandboxed read-only environment, and checked for hallucinations and semantic ambiguity before an answer ever reaches a user. Built to answer the real question in enterprise NL2SQL: not "can an LLM write SQL?" (it can), but "can you trust it enough to point it at a real database?"
 
 Every layer in this project exists because something concrete broke without it, not because of upfront guesswork. That distinction — and the real bugs that drove each addition — is documented throughout this README.
@@ -169,11 +171,17 @@ safequery/
 │   ├── cases.py            # eval questions + reference queries
 │   ├── run_eval.py         # end-to-end eval: model + guardrails, graded against reference queries
 │   └── guardrail_eval.py   # guardrails only: hand-written dangerous/valid SQL, no LLM
+├── app.py                   # Streamlit UI: answer, data, and a telemetry panel
 ├── ask.py                   # question → validated, executed SQL result
 ├── respond.py                # primary entry point: ask + plausibility + grounded
 │                              # answer + auto consistency check + low-confidence flag
 ├── check.py                    # manual consistency checking
-├── docker-compose.yml
+├── .streamlit/config.toml      # Streamlit settings
+├── docker/entrypoint.sh        # container start-up: wait for DB, build embeddings, start app
+├── .github/workflows/ci.yml    # CI: guardrail evaluation on every push
+├── Dockerfile                  # builds the app image
+├── .dockerignore               # keeps .env, venv, caches out of the image
+├── docker-compose.yml          # Postgres + pgvector and the app, one command
 ├── requirements.txt
 └── README.md
 ```
@@ -205,22 +213,41 @@ safequery/
 
 ## Usage
 
+**Option A: one command with Docker (recommended)**
+
 ```bash
-docker compose up -d                     # Postgres 16 + pgvector
-python -m retrieval.index                # build schema embeddings (once, or after schema changes)
-python -m respond "What is the total revenue by region?"
-python -m evaluation.run_eval            # end-to-end evaluation (calls the LLM, a few rupees)
-python -m evaluation.guardrail_eval      # validators only, no LLM, free
+# 1. put your key in a .env file in the project root:
+#    ANTHROPIC_API_KEY=your-key-here
+docker compose up --build
+# 2. open http://localhost:8501
 ```
 
-Requires an Anthropic API key (workspace-scoped) in the environment.
+The first build takes several minutes (it downloads PyTorch and the embedding model; both are baked into the image). On start, the database container creates the tables, seed data and the read-only role, and the app container builds the schema embeddings and then starts the UI. To test a completely fresh start: `docker compose down -v` first (this deletes the database volume, which is rebuilt from `seed.sql`).
+
+**Option B: run locally (development and evaluation)**
+
+```bash
+docker compose up -d postgres            # Postgres 16 + pgvector only
+python -m retrieval.index                # build schema embeddings (once, or after schema changes)
+python -m respond "What is the total revenue by region?"
+streamlit run app.py                     # the web UI
+python -m evaluation.run_eval            # end-to-end evaluation (calls the LLM, a few rupees)
+python -m evaluation.guardrail_eval      # validators only, no LLM, free; exits 1 on any regression (used by CI)
+```
+
+Requires an Anthropic API key (workspace-scoped) in `.env` or the environment. `DB_HOST` and `DB_PORT` default to `localhost:5432`; compose sets `DB_HOST=postgres` for the app container.
+
+The database passwords in this repo (`safequery_dev`, `reader_dev`) are throwaway local-development values for a database that holds only synthetic data. Change them before exposing anything beyond your own machine.
 
 ---
 
 ## Roadmap
 
-- [x] Step 7: evaluation harness, refusal path, guardrail-only evaluation, final results (80–81/84 across two runs, see Evaluation)
-- [ ] A simple web interface (Streamlit) over the existing `respond()` function
+- [x] Step 7: evaluation harness, refusal path, guardrail-only evaluation, final results (80–83/84 across three runs, see Evaluation)
+- [x] A web interface (Streamlit) over `respond()`, with a telemetry panel
+- [x] Docker: one command runs the database and the app
+- [x] GitHub Actions CI: runs the guardrail evaluation against a Postgres service container on every push (fails the build on any fail-open, false positive or validator error)
+- [ ] Latency and cost per query measured
 - [ ] Full integration of schema-and-data upload (currently prototyped and tested, not yet wired into the live pipeline)
 - [ ] Cost-based rejection using EXPLAIN's estimated query cost, not just row limits and timeouts
 - [ ] Optional: reject `SELECT ... INTO` explicitly (currently blocked incidentally by the schema check and by the database role's lack of `CREATE`)
@@ -233,21 +260,22 @@ Requires an Anthropic API key (workspace-scoped) in the environment.
 
 Two separate evaluations, because they measure different things.
 
-**1. End-to-end (`evaluation/run_eval.py`)** — 46 questions, each run 3 times, graded by comparing the generated query's *result* to a hand-written reference query (not by comparing SQL text): 28 answerable, 12 unsafe or unanswerable, 6 genuinely ambiguous (recorded, not graded).
+**1. End-to-end (`evaluation/run_eval.py`)** — 47 questions, each run 3 times, graded by comparing the generated query's *result* to a hand-written reference query (not by comparing SQL text): 28 answerable, 12 unsafe or unanswerable, 7 genuinely ambiguous (recorded, not graded).
 
-| Metric (138 runs: 46 questions × 3) | Result |
+| Metric (141 runs: 47 questions × 3, latest run) | Result |
 |---|---|
-| Execution accuracy (28 answerable × 3 runs) | **80–81 / 84 (95.2–96.4%)** across two full runs; 27 of 28 questions correct in all 3 runs in the first, 26 of 28 in the second |
-| Answered on the first attempt | 84 / 84 (first run), 83 / 84 (second run) |
-| Unsafe or unanswerable requests returning no result | 36 / 36, all cleanly refused in one attempt |
-| Unstable cases (pass some runs, fail others) | none in the first run; one ("How many orders were placed in each region?") in the second |
+| Execution accuracy (28 answerable × 3 runs) | **83 / 84 (98.8%)** in the latest run; **80–83 / 84 (95.2–98.8%)** across three full runs (81, 80, 83) |
+| Answered on the first attempt | 83 / 84 |
+| Unsafe or unanswerable requests returning no result | 36 / 36, all cleanly refused (one attempt was rejected by the syntax layer, the first non-refusal rejection seen end to end) |
+| Unstable cases (pass some runs, fail others) | 1 (c28, 2 of 3 runs correct in the latest run) |
 | Tables unchanged after the run | True |
 
-The 3 misses in the first run are one question ("How many customers have more than 3 orders?") failing in every run: a **genuine, consistent model error** (nested aggregation: it returns one row per qualifying customer instead of counting them). It is left as a documented limitation. An earlier run scored 77/84; the 4 extra misses then were test-side problems (a year returned as a date instead of a number, and a schema with two valid region links), fixed by accepting alternate reference queries, not by changing the system.
+**What failed, run by run.**
+- *Run 1 (81/84):* all 3 misses were one question ("How many customers have more than 3 orders?", c28), wrong in every run: a nested-aggregation error (one row per qualifying customer instead of a count). An even earlier run scored 77/84; the 4 extra misses then were test-side problems (a year returned as a date instead of a number, and a schema with two valid region links), fixed by accepting alternate reference queries, not by changing the system.
+- *Run 2 (80/84):* c28 again, plus one miss on c19, "How many orders were **placed** in each region?". In 1 of 3 runs the model read "placed" as the status value `'placed'` and filtered on it, a legitimate reading since `placed` is a real status. That was ambiguous wording in my test, not a system bug.
+- *Run 3 (83/84):* c19 was reworded to "How many orders are there in each region?" and the original wording moved to the ambiguous set (a07). The test was changed after seeing the system fail it, so all three runs are reported. c19 then passed 3/3. c28 passed 2 of 3 times, so it is better described as **unreliable** than as consistently wrong: nothing about c28 was changed between runs, which is a reminder that single runs vary and that 3 runs is a small sample.
 
-The second full run scored 80/84. The extra miss was case 19, "How many orders were **placed** in each region?", in 1 of 3 runs: the model once read "placed" as the status value `'placed'` and filtered on it (`LEFT JOIN orders ... AND o.status = 'placed'`), which is a legitimate reading, since `placed` is a real status in the data. The cause was ambiguous wording in the test question, not a system bug. After diagnosing it, the graded question was reworded to "How many orders are there in each region?" and the original wording was moved to the ambiguous set. The test was changed after seeing the system fail it, so both runs with the old wording (81 and 80) are reported above.
-
-**Ambiguous questions (7 after the c19 rewording, recorded not graded):** the low-confidence flag fired in 5 of the 12 runs where the model answered (it varies run to run, e.g. "orders placed" was flagged 0/3 in one run and 2/3 in the next); "best customers" and "conversion rate" were refused every time. The flag is a useful signal, not a reliable detector.
+**Ambiguous questions (7, recorded not graded):** in the latest run the low-confidence flag fired in 8 of the 15 runs where the model answered (it varies run to run, e.g. "orders placed" was flagged 0/3 in one run and 2/3 in the next, and "revenue last quarter" went from 0/3 to 3/3 after the retry and quarter-hint fixes); "best customers" and "conversion rate" were refused every time. The flag is a useful signal, not a reliable detector.
 
 **2. Guardrails only (`evaluation/guardrail_eval.py`)** — no LLM. 40 hand-written SQL strings go straight into the validators: **29/29 dangerous inputs blocked, 11/11 valid queries allowed, 0 fail-open, 0 false positives**, and every layer caught at least one case. The valid queries (CTEs, subqueries, window functions, comments) are false-positive controls.
 
