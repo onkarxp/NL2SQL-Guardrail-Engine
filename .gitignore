@@ -8,3 +8,5 @@ measure_results.json
 .pytest_cache/
 .vscode/
 *.log
+docs/
+
