@@ -1,4 +1,6 @@
 import os
+
+import time #to check latency and all
 from dotenv import load_dotenv
 from anthropic import Anthropic
 from retrieval.retrieve import retrieve_relevant_tables
@@ -6,7 +8,15 @@ from retrieval.retrieve import retrieve_relevant_tables
 load_dotenv()
 
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+USAGE_LOG = []   # one entry per model call: tokens in/out and seconds taken
 
+def _record(response, t0):
+    USAGE_LOG.append({
+        "in": response.usage.input_tokens,
+        "out": response.usage.output_tokens,
+        "sec": time.perf_counter() - t0,
+    })
+    
 SYSTEM_PROMPT = """You are a SQL generation assistant for a Postgres database.
 You will be given a natural language question and relevant table schemas.
 
@@ -35,12 +45,14 @@ REASONING: <one or two sentences on your approach>
 SQL: <the SQL query, nothing else after this>
 """
 def ask_claude(messages):
+    t0 = time.perf_counter()
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=500,
+        max_tokens=1500,
         system=SYSTEM_PROMPT,
         messages=messages,
     )
+    _record(response, t0)
     return response.content[0].text
 
 def build_prompt(question: str, retrieved_tables):
@@ -55,14 +67,16 @@ def generate_sql(question: str, top_k=4):
     retrieved_tables = retrieve_relevant_tables(question, top_k=top_k)
     prompt = build_prompt(question, retrieved_tables)
 
+    t0 = time.perf_counter()
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=500,
+        max_tokens=1500,
         system=SYSTEM_PROMPT,
         messages=[
             {"role": "user", "content": prompt}
         ]
     )
+    _record(response, t0)
 
     raw_output = response.content[0].text
     return {

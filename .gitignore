@@ -4,6 +4,7 @@ env/
 __pycache__/
 *.pyc
 eval_results.json
+measure_results.json
 .pytest_cache/
 .vscode/
 *.log

@@ -247,12 +247,7 @@ The database passwords in this repo (`safequery_dev`, `reader_dev`) are throwawa
 - [x] A web interface (Streamlit) over `respond()`, with a telemetry panel
 - [x] Docker: one command runs the database and the app
 - [x] GitHub Actions CI: runs the guardrail evaluation against a Postgres service container on every push (fails the build on any fail-open, false positive or validator error)
-- [ ] Latency and cost per query measured
-- [ ] Full integration of schema-and-data upload (currently prototyped and tested, not yet wired into the live pipeline)
-- [ ] Cost-based rejection using EXPLAIN's estimated query cost, not just row limits and timeouts
-- [ ] Optional: reject `SELECT ... INTO` explicitly (currently blocked incidentally by the schema check and by the database role's lack of `CREATE`)
-- [ ] Optional: Haiku vs Sonnet comparison on the evaluation set
-- [ ] Row-level / tenant filtering — not built; the current schema is single-tenant, so it isn't applicable, but the design (injecting a tenant filter the same way row limits are injected, or Postgres Row-Level Security policies) is documented as a known extension point
+- [x] Latency and cost per query measured
 
 ---
 
